@@ -99,7 +99,7 @@ class _BottomEditorPaneState extends ConsumerState<BottomEditorPane> {
   void saveAndClose([bool pop = true]) {
     final fullTags = element.getFullTags();
     // Setting the mark automatically.
-    if (ElementKind.needsCheck.matchesTags(fullTags)) element.check();
+    if (ElementKind.needsCheck.matchesTags(fullTags)) element.checkIfNeeded();
     // Store the preset when an object was saved, to track used ones.
     if (widget.preset != null) {
       ref.read(lastPresetsProvider).registerPreset(widget.preset!, fullTags);

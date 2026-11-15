@@ -222,6 +222,18 @@ class OsmChange extends ChangeNotifier implements Comparable, Located {
     this[kCheckedKey] = kDateFormat.format(DateTime.now());
   }
 
+  static final _kReDate = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+
+  /// Sets check_date to today, unless a valid date was entered manually.
+  void checkIfNeeded() {
+    final value = newTags[kCheckedKey];
+    if (value != null && _kReDate.hasMatch(value)) {
+      final date = DateTime.tryParse('${value}T00:00:00Z');
+      if (date != null && kDateFormat.format(date) == value) return;
+    }
+    check();
+  }
+
   void uncheck() {
     newTags.remove(kCheckedKey);
     _updateMainKey();
