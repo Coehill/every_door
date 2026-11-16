@@ -222,16 +222,20 @@ class OsmChange extends ChangeNotifier implements Comparable, Located {
     this[kCheckedKey] = kDateFormat.format(DateTime.now());
   }
 
-  static final _kReDate = RegExp(r'^\d{4}-\d{2}-\d{2}$');
-
-  /// Sets check_date to today, unless a valid date was entered manually.
-  void checkIfNeeded() {
-    final value = newTags[kCheckedKey];
-    if (value != null && _kReDate.hasMatch(value)) {
-      final date = DateTime.tryParse('${value}T00:00:00Z');
-      if (date != null && kDateFormat.format(date) == value) return;
-    }
+  /// Sets check_date to today, unless the user entered a valid date in the past.
+  void checkIfNeeded(String? originalCheckDate) {
+    final value = this[kCheckedKey];
+    if (value != null && value != originalCheckDate && _isValidCheckDate(value))
+      return;
     check();
+  }
+
+  static bool _isValidCheckDate(String value) {
+    final date = DateTime.tryParse('${value}T00:00:00Z');
+    final now = DateTime.now();
+    return date != null &&
+        kDateFormat.format(date) == value &&
+        !date.isAfter(DateTime.utc(now.year, now.month, now.day));
   }
 
   void uncheck() {

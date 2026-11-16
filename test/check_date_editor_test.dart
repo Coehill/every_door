@@ -39,41 +39,52 @@ void main() {
   setUp(ElementKind.reset);
 
   for (final bottomSheet in [false, true]) {
-    testWidgets(
-        '${bottomSheet ? 'bottom' : 'full'} editor passes the manual date to save',
-        (tester) async {
-      final change = OsmChange(OsmElement(
-        source: 'osm',
-        id: const OsmId(OsmElementType.node, 1),
-        version: 1,
-        timestamp: DateTime.utc(2020),
-        tags: {'amenity': 'cafe'},
-        center: const LatLng(0, 0),
-      ));
-      change['check_date'] = '2020-01-01';
-      final changes = RecordingChanges();
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          changesProvider.overrideWith(() => changes),
-          presetProvider.overrideWith((ref) => FakePresets()),
-        ],
-        child: MaterialApp(
-          locale: const Locale('en'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: bottomSheet
-              ? BottomEditorPane(element: change, fields: const [])
-              : PoiEditorPage(amenity: change),
-        ),
-      ));
+    for (final editDate in [true, false]) {
+      testWidgets(
+          '${bottomSheet ? 'bottom' : 'full'} editor '
+          '${editDate ? 'preserves a date edited after opening' : 'refreshes an old pending date present at opening'}',
+          (tester) async {
+        final change = OsmChange(OsmElement(
+          source: 'osm',
+          id: const OsmId(OsmElementType.node, 1),
+          version: 1,
+          timestamp: DateTime.utc(2020),
+          tags: {'amenity': 'cafe'},
+          center: const LatLng(0, 0),
+        ));
+        change['check_date'] = '2020-01-01';
+        final changes = RecordingChanges();
+        await tester.pumpWidget(ProviderScope(
+          overrides: [
+            changesProvider.overrideWith(() => changes),
+            presetProvider.overrideWith((ref) => FakePresets()),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: bottomSheet
+                ? BottomEditorPane(element: change, fields: const [])
+                : PoiEditorPage(amenity: change),
+          ),
+        ));
 
-      final finder = bottomSheet
-          ? find.byType(BottomEditorPane)
-          : find.byType(PoiEditorPage);
-      final dynamic state = tester.state(finder);
-      expect(() => state.saveAndClose(), throwsA(isA<_SaveIntercepted>()));
-      expect(changes.saved?['check_date'], '2020-01-01');
-      await tester.pump(const Duration(milliseconds: 1));
-    });
+        final finder = bottomSheet
+            ? find.byType(BottomEditorPane)
+            : find.byType(PoiEditorPage);
+        final dynamic state = tester.state(finder);
+        if (editDate) {
+          final OsmChange edited = bottomSheet ? state.element : state.amenity;
+          edited[OsmChange.kCheckedKey] = '2024-02-29';
+        }
+        expect(() => state.saveAndClose(), throwsA(isA<_SaveIntercepted>()));
+        expect(
+            changes.saved?['check_date'],
+            editDate
+                ? '2024-02-29'
+                : OsmChange.kDateFormat.format(DateTime.now()));
+        await tester.pump(const Duration(milliseconds: 1));
+      });
+    }
   }
 }

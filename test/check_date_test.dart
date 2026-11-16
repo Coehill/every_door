@@ -18,15 +18,13 @@ void main() {
   test('automatic checking preserves a manually edited date', () {
     final change = existing('2020-01-01');
     change['check_date'] = '2024-02-29';
-    change.checkIfNeeded();
+    change.checkIfNeeded('2020-01-01');
     expect(change['check_date'], '2024-02-29');
     expect(change.copy()['check_date'], '2024-02-29');
     final restored = OsmChange.fromJson({
       ...change.element!.toJson(),
       ...change.toJson(),
     });
-    expect(restored['check_date'], '2024-02-29');
-    restored.checkIfNeeded();
     expect(restored['check_date'], '2024-02-29');
     expect(restored.toElement(newId: 1).tags['check_date'], '2024-02-29');
   });
@@ -35,7 +33,7 @@ void main() {
       () {
     final change = existing();
     change['check_date'] = '2011-12-30';
-    change.checkIfNeeded();
+    change.checkIfNeeded(null);
     expect(change['check_date'], '2011-12-30');
   });
 
@@ -43,8 +41,39 @@ void main() {
     for (final date in [null, '2020-01-01']) {
       final change = existing(date);
       change['name'] = 'Cafe';
-      change.checkIfNeeded();
+      change.checkIfNeeded(date);
       expect(change['check_date'], today());
+    }
+  });
+
+  test('automatic checking refreshes an unchanged pending date', () {
+    final change = existing();
+    change['check_date'] = '2020-01-01';
+    change.checkIfNeeded(change['check_date']);
+    expect(change['check_date'], today());
+  });
+
+  test('automatic checking preserves an edit back to the original OSM date',
+      () {
+    final change = existing('2020-01-01');
+    change['check_date'] = '2021-01-01';
+    final originalCheckDate = change['check_date'];
+    change['check_date'] = '2020-01-01';
+    change.checkIfNeeded(originalCheckDate);
+    expect(change['check_date'], '2020-01-01');
+  });
+
+  test('automatic checking replaces a future date', () {
+    final now = DateTime.now();
+    for (final date in [
+      OsmChange.kDateFormat
+          .format(DateTime.utc(now.year, now.month, now.day + 1)),
+      '81030-04-01',
+    ]) {
+      final change = existing();
+      change['check_date'] = date;
+      change.checkIfNeeded(null);
+      expect(change['check_date'], today(), reason: date);
     }
   });
 
@@ -60,7 +89,7 @@ void main() {
     ]) {
       final change = existing('2020-01-01');
       change['check_date'] = date;
-      change.checkIfNeeded();
+      change.checkIfNeeded('2020-01-01');
       expect(change['check_date'], today(), reason: '$date');
     }
   });
